@@ -1,0 +1,267 @@
+% MAIN SCRIPT to create "stacked" cwt figures
+% creates 1 figure per year displaying all 9 profiles
+clear all; close all
+
+options = [6 5 2 4 1 7 8 3 9];  %indexes ordered from N to S
+%options = [6 2 1 3];  %indexes ordered from N to S
+n_prof = length(options);  %number of options/ profiles
+
+for opt = 1:n_prof
+    
+    if opt == 1
+        load('centerline2_profiles_all.mat')
+        label(opt) = "Tweedsmuir Profile: Centerline";
+        all_profiles{opt} = {center_1950, center_1969, center_1974, center_1987, center_2000, center_2007,...
+            center_2010, center_2018};
+        
+    elseif opt == 2
+        load('profile2_north.mat')
+        label(opt) = "Tweedsmuir Profile B: North";
+        all_profiles{opt} = {profile2_1950, profile2_1969, profile2_1974, profile2_1987, profile2_2000, profile2_2007,...
+            profile2_2010, profile2_2018};
+        
+    elseif opt == 3
+        load('profile3_south.mat')
+        label(opt) = "Tweedsmuir Profile 3: South";
+        all_profiles{opt} = {profile3_1950, profile3_1969, profile3_1974, profile3_1987, profile3_2000, profile3_2007,...
+            profile3_2010, profile3_2018};
+        
+    elseif opt == 4
+        load('profile4_north.mat')
+        label(opt) = "Tweedsmuir Profile 4: North";
+        all_profiles{opt} = {profile4_N_1950, profile4_N_1969, profile4_N_1974, profile4_N_1987, profile4_N_2000, profile4_N_2007,...
+            profile4_N_2010, profile4_N_2018};
+        
+    elseif opt == 5
+        load('profile5_north.mat')
+        label(opt) = "Tweedsmuir Profile 5: North";
+        all_profiles{opt} = {profile5_N_1950, profile5_N_1969, profile5_N_1974, profile5_N_1987, profile5_N_2000, profile5_N_2007,...
+            profile5_N_2010, profile5_N_2018};
+        
+    elseif opt == 6
+        load('profile6_north.mat')
+        label(opt) = "Tweedsmuir Profile 6: North";
+        all_profiles{opt} = {profile6_N_1950, profile6_N_1969, profile6_N_1974, profile6_N_1987, profile6_N_2000, profile6_N_2007,...
+            profile6_N_2010, profile6_N_2018};
+        
+    elseif opt == 7
+        load('profile7_south.mat')
+        label(opt) = "Tweedsmuir Profile 7: South";
+        all_profiles{opt} = {profile7_S_1950, profile7_S_1969, profile7_S_1974, profile7_S_1987, profile7_S_2000, profile7_S_2007,...
+            profile7_S_2010, profile7_S_2018};
+        
+    elseif opt == 8
+        load('profile8_south.mat')
+        label(opt) = "Tweedsmuir Profile F: South";
+        all_profiles{opt} = {profile8_S_1950, profile8_S_1969, profile8_S_1974, profile8_S_1987, profile8_S_2000, profile8_S_2007,...
+            profile8_S_2010, profile8_S_2018};
+        
+    elseif opt == 9
+        load('profile9_south.mat')
+        label(opt) = "Tweedsmuir Profile 9: South";
+        all_profiles{opt} = {profile9_S_1950, profile9_S_1969, profile9_S_1974, profile9_S_1987, profile9_S_2000, profile9_S_2007,...
+            profile9_S_2010, profile9_S_2018};
+        
+    end
+    
+end
+
+%% detrend & crop profiles 
+
+years = [1950, 1969, 1974, 1987, 2000, 2007, 2010, 2018];
+
+n_yrs = length(years); % number of profiles
+years_ind = 1:n_yrs; % choose the years you want to activate
+%years_ind = 6; % choose the years you want to activate
+
+col = parula(n_prof);
+
+for p = 1:n_prof  %iterate over each profile
+    
+    j = options(p);
+        
+    for k = years_ind  %iterate through each year
+        
+        %detrend profiles
+        detrend_profiles{j}{k} = detrend(all_profiles{j}{k}(:,2));
+        
+        %crop profiles
+        %crop up-glacier bound to 1974 (year = 3)
+        [m,upper] = min(abs(all_profiles{j}{k}(:,1) - all_profiles{j}{3}(end,1)));
+        
+        %crop terminus bound to 2007 (year = 6)
+        [m,lower] = min(abs(all_profiles{j}{k}(:,1) - all_profiles{j}{6}(1,1)));
+        
+        cropped_profiles{j}{k} = detrend_profiles{j}{k}(lower:upper);
+        cropped_dist{j}{k} = all_profiles{j}{k}(lower:upper,1);
+        
+        %align x axes to centerline profile 
+        if j == 2
+            cropped_dist{j}{k} = cropped_dist{j}{k} + 2385;
+        elseif j == 4
+            cropped_dist{j}{k} = cropped_dist{j}{k} + 1723;
+        elseif j == 5
+            cropped_dist{j}{k} = cropped_dist{j}{k} + 285;
+        elseif j == 6
+            cropped_dist{j}{k} = cropped_dist{j}{k} + 4000;
+        elseif j == 9
+            cropped_dist{j}{k} = cropped_dist{j}{k} + 322;
+        end
+        
+%         figure(years(k)-1900); hold on
+%         subplot(n_prof,1,p); hold on
+%         title(['Profile ', num2str(j)])
+%         x = cropped_dist{j}{k};
+%         z = cropped_profiles{j}{k}(:,1);
+%         plot(x./1e3,z,'LineWidth',2, 'Color', col(p,:))
+%         set (gca,'Xdir','reverse')  
+%         xlim([5 20])
+%         
+%         if j == n_prof
+%             suptitle(num2str(years(k)))
+%         end
+        
+    end
+    
+end
+
+%% Run CWT and create "stacked profile"
+clear options; options = [2 1 8];
+n_prof = length(options);
+count = 0;
+
+for p = 1:n_prof
+    for k = years_ind
+        
+        count = count + 1;
+        j = options(p);
+        
+        X = cropped_profiles{j}{k};
+        
+        %continious wavelet transform
+        [wt, frq, coi] = cwt(X,'amor',1/40);
+
+     
+        f = figure(420); hold on
+        %figure(years(k)); hold on  %one figure per year
+        %subplot(n_prof,1,p); hold on %one subplot per profile
+        %subplot(n_prof, length(years_ind), count); hold on
+        h(count) = subaxis(n_prof, length(years_ind), count, 'SpacingHoriz',0.005, 'SpacingVert', 0.02, 'MR', 0.15); hold on
+        
+
+        %plot scaleogram
+        pcolor(cropped_dist{j}{k}./1e3,frq,abs(wt))
+        shading interp
+        
+        %set colour scale
+        caxis([0 10])
+
+        area(cropped_dist{j}{k}./1e3,coi,...
+            'FaceColor','k','FaceAlpha',0.7,'EdgeColor','w','LineStyle','--','LineWidth',3)
+        
+        %plot parameters
+        xlim([5.5 20])
+        set(gca,'XTick', 6:4:20)
+        ylim([min(coi) 0.01])
+        set(gca,'Xdir','reverse')
+        set(gca,'YScale','log')
+        
+        
+        ylim([min(coi) 0.01])
+        %ymarks= fliplr(1./[100 500 1000 2000 4000]);
+        ymarks= fliplr(1./(300*[1 3 5 8 15]));
+        set(gca,'YScale','log')
+%         set(gca, 'YTick',ymarks, 'YTickLabel',num2cell(1./ymarks),'fontsize',18)
+        
+            
+        if k == 1
+            set(gca, 'YTick',ymarks, 'YTickLabel',num2cell(1./ymarks./300), 'fontsize',18, 'YColor', 'k')
+            
+        else
+            set(gca,'YTick',[])
+            set(gca, 'YColor', 'k')
+            
+        end
+        
+        
+        %add labels to last subplot
+        if p == n_prof
+            %xlabel('distance along centerline (km)','fontsize',18)
+            set(gca,'fontsize',18)
+            xtickangle(0) %without this line, Maltab 2021b will rotate labels
+            xticks([6:4:18])
+            
+        elseif p == 1
+            
+            if years(k) == 1974 || years(k) == 2007 || years(k) == 2010
+                title(num2str(years(k)),'fontsize',18, 'Color', [0, 0.4470, 0.7410])
+                set(gca, 'XTick',[], 'XTickLabel',[]);
+            else
+                title(num2str(years(k)),'fontsize',18)
+                set(gca, 'XTick',[], 'XTickLabel',[]);
+            end
+            
+        else 
+            set(gca, 'XTick',[], 'XTickLabel',[]);
+            
+        end
+        
+%         if years(k) == 1974 || years(k) == 2007 || years(k) == 2010
+%             set(gca, 'Color', [0.77, 0.92, 1]);
+%         end
+        
+    end
+        
+end
+
+cbh = colorbar(h(end),'Position',...
+    [0.870833333333333 0.100726895119418 0.0260416666666666 0.801661474558671]);
+cbh.Label.String = 'amplitude (m)';
+cbh.Label.Interpreter = 'latex';
+cbh.Label.FontSize = 25;
+
+%[ax,h1]=suplabel('wavenumber (1/m)','y');
+[ax,h2]=suplabel('distance from terminus (km)','x');
+[ax,h3]=suplabel('dimensionless wavelength ($\frac{\lambda_x}{H}$)','y');
+set(h2,'FontSize',25, 'fontname', 'arial', 'color', 'k')
+set(h3,'FontSize',25, 'fontname', 'arial', 'color', 'k')
+
+% % Create textbox
+% annotation(f,'textbox',...
+%     [0.103604166666667 0.869158878504673 0.0443125 0.0259605399792315],...
+%     'String','North',...
+%     'Interpreter', 'latex',...
+%     'HorizontalAlignment','center',...
+%     'FontWeight','bold',...
+%     'FontSize',16,...
+%     'FontName','Arial',...
+%     'FitBoxToText','off',...
+%     'EdgeColor',[1 1 1],...
+%     'BackgroundColor',[1 1 1]);
+% 
+% % Create textbox
+% annotation(f,'textbox',...
+%     [0.1025625 0.612668743509865-0.02 0.0443125000000001 0.0259605399792315],...
+%     'String','Center',...
+%     'Interpreter', 'latex',...
+%     'HorizontalAlignment','center',...
+%     'FontWeight','bold',...
+%     'FontSize',16,...
+%     'FontName','Arial',...
+%     'FitBoxToText','off',...
+%     'EdgeColor',[1 1 1],...
+%     'BackgroundColor',[1 1 1]);
+% 
+% % Create textbox
+% annotation(f,'textbox',...
+%     [0.103604166666667 0.355140186915887-0.04 0.0443125000000001 0.0259605399792316],...
+%     'String','South',...
+%     'Interpreter', 'latex',...
+%     'HorizontalAlignment','center',...
+%     'FontWeight','bold',...
+%     'FontSize',16,...
+%     'FontName','Arial',...
+%     'FitBoxToText','off',...
+%     'EdgeColor',[1 1 1],...
+%     'BackgroundColor',[1 1 1]);
+
