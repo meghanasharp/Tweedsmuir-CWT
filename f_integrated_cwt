@@ -1,0 +1,163 @@
+ MAIN SCRIPT to create frequency integrated cwt figures
+% creates 1 figure per year displaying all 9 profiles
+clear all; close all
+
+%% set up data
+n_prof = 9;  %number of options/ profiles
+options = [6 5 2 4 1 7 8 3 9];  %indexes ordered from N to S
+
+for opt = 1:n_prof
+    
+    if opt == 1
+        load('centerline2_profiles_all.mat')
+        label(opt) = "Center Profile";
+        all_profiles{opt} = {center_1950, center_1969, center_1974, center_1987, center_2000, center_2007,...
+            center_2010, center_2018};
+        
+    elseif opt == 2
+        load('profile2_north.mat')
+        label(opt) = "Profile B";
+        all_profiles{opt} = {profile2_1950, profile2_1969, profile2_1974, profile2_1987, profile2_2000, profile2_2007,...
+            profile2_2010, profile2_2018};
+        
+    elseif opt == 3
+        load('profile3_south.mat')
+        label(opt) = "Profile G";
+        all_profiles{opt} = {profile3_1950, profile3_1969, profile3_1974, profile3_1987, profile3_2000, profile3_2007,...
+            profile3_2010, profile3_2018};
+        
+    elseif opt == 4
+        load('profile4_north.mat')
+        label(opt) = "Profile C";
+        all_profiles{opt} = {profile4_N_1950, profile4_N_1969, profile4_N_1974, profile4_N_1987, profile4_N_2000, profile4_N_2007,...
+            profile4_N_2010, profile4_N_2018};
+        
+    elseif opt == 5
+        load('profile5_north.mat')
+        label(opt) = "Profile D";
+        all_profiles{opt} = {profile5_N_1950, profile5_N_1969, profile5_N_1974, profile5_N_1987, profile5_N_2000, profile5_N_2007,...
+            profile5_N_2010, profile5_N_2018};
+        
+    elseif opt == 6
+        load('profile6_north.mat')
+        label(opt) = "Profile A";
+        all_profiles{opt} = {profile6_N_1950, profile6_N_1969, profile6_N_1974, profile6_N_1987, profile6_N_2000, profile6_N_2007,...
+            profile6_N_2010, profile6_N_2018};
+        
+    elseif opt == 7
+        load('profile7_south.mat')
+        label(opt) = "Profile E";
+        all_profiles{opt} = {profile7_S_1950, profile7_S_1969, profile7_S_1974, profile7_S_1987, profile7_S_2000, profile7_S_2007,...
+            profile7_S_2010, profile7_S_2018};
+        
+    elseif opt == 8
+        load('profile8_south.mat')
+        label(opt) = "Profile F";
+        all_profiles{opt} = {profile8_S_1950, profile8_S_1969, profile8_S_1974, profile8_S_1987, profile8_S_2000, profile8_S_2007,...
+            profile8_S_2010, profile8_S_2018};
+        
+    elseif opt == 9
+        load('profile9_south.mat')
+        label(opt) = "Profile H";
+        all_profiles{opt} = {profile9_S_1950, profile9_S_1969, profile9_S_1974, profile9_S_1987, profile9_S_2000, profile9_S_2007,...
+            profile9_S_2010, profile9_S_2018};
+        
+    end
+    
+end
+
+%%
+%%%% detrend & crop profiles 
+
+years = [1950, 1969, 1974, 1987, 2000, 2007, 2010, 2018];
+
+n_yrs = length(years); % number of profiles
+years_ind = 1:n_yrs; % choose the years you want to activate
+
+col = parula(n_prof);
+
+for j = 1:n_prof  %iterate over each profile
+    for k = years_ind  %iterate through each year
+        
+        %detrend profiles
+        detrend_profiles{j}{k} = detrend(all_profiles{j}{k}(:,2));
+        
+        %crop profiles
+        %crop terminus bound to 1974 (year = 3)
+        [m,upper] = min(abs(all_profiles{j}{k}(:,1) - all_profiles{j}{3}(end,1)));
+        
+        %crop up-glacier bound to 2007 (year = 6)
+        [m,lower] = min(abs(all_profiles{j}{k}(:,1) - all_profiles{j}{6}(1,1)));
+        
+        cropped_profiles{j}{k} = detrend_profiles{j}{k}(lower:upper);
+        cropped_dist{j}{k} = all_profiles{j}{k}(lower:upper,1);
+        
+        figure(years(k)-1900); hold on
+        subplot(n_prof,1,j); hold on
+        title(['Profile ', num2str(options(j))])
+        x = cropped_dist{j}{k};
+        z = cropped_profiles{j}{k}(:,1);
+        plot(x./1e3,z,'LineWidth',2, 'Color', col(j,:))
+        set (gca,'Xdir','reverse')  
+        xlim([0 20])
+        
+        if j == n_prof
+            suptitle(num2str(years(k)))
+        end
+        
+    end
+    
+end
+
+%% Run CWT 
+
+% define frequency band to integrate over
+h_mean = 300;  %mean ice thickness (m)
+f_range = [1./(8.*h_mean), 1./(3.*h_mean)];
+
+col_surges = [col(5,:); col(8,:); col(2,:);...
+    col(6,:); col(7,:); col(1,:); col(2,:); col(6,:)];
+
+for p = 1:n_prof
+    
+    j = options(p);
+    
+    for k = years_ind
+        
+        X = cropped_profiles{j}{k};
+        
+        %continious wavelet transform
+        [wt{j}{k}, frq{j}{k}, coi{j}{k}] = cwt(X,'amor',1/40);
+        
+        %integrated over frequency band
+        f_range_ind{j}{k} = find(frq{j}{k}>f_range(1) & frq{j}{k}<f_range(2));
+        f_integrated{j}{k} = sum(abs(wt{j}{k}(f_range_ind{j}{k},:)));
+        
+        if length(cropped_dist{j}{k}) ~= length(f_integrated{j}{k})
+            disp('dimensions do not agree!')
+        end
+        
+        figure(1); hold on
+        subplot(ceil(n_prof/2),2,p); hold on  %one subplot per profile
+        
+        if years(k) == 1974 || years(k) == 2007 || years(k) == 2010
+            plot(cropped_dist{j}{k}./1e3, f_integrated{j}{k},'Color', col_surges(k,:),'LineWidth',1.5)
+        else
+            plot(cropped_dist{j}{k}./1e3, f_integrated{j}{k},'Color', col_surges(k,:),'LineWidth',1.5,'LineStyle','--')
+        end
+        
+        xlabel('distance along profile (km)')
+        ylabel('amplitude')
+        ylim([0 140])
+        title(['Profile ', num2str(j)])
+        set(gca,'Xdir','reverse')
+        
+        leglabel(k) = string(num2str(years(k)));
+       
+           
+    end
+   
+        
+end
+
+legend(leglabel,'Location','northwest')
